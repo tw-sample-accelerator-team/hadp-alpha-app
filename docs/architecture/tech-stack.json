@@ -1,0 +1,31 @@
+{
+  "sources": [
+    "docs/architecture/app-components.json",
+    "docs/architecture/architecture-characteristics.md",
+    "/context/standards/application-types.yaml"
+  ],
+  "components": [
+    {
+      "name": "web",
+      "application_type": "web-ui",
+      "folder": "apps/web",
+      "stack": {
+        "standard": "frontend-react",
+        "architecture": "feature-folders"
+      },
+      "standard_file": "/context/standards/engineering/frontend-react.yaml",
+      "reason": "frontend-react with feature-folders is the only stack web-ui allows, and it fits the characteristics. Rule features-are-independent keeps each screen area (account overview and gaps, suggestions, plans and actions, history) in its own feature that shares only src/shared. That keeps AC-4 Explainability in one place: the evidence-link view lives in src/shared and every gap, driver and suggestion screen uses it. AC-6 Plan data integrity: the plan form shows a refused save and names the action that caused it, while the server still makes the final check. AC-1 Access isolation: the UI shows only the accounts and data the API returns, so the API stays the single point that enforces access. TypeScript lets the UI use the same typed API contract as the backend-ts api, where the evidence reference is a required field (AC-4). Vitest at 70% coverage runs the FR-level UI tests that AC-3, AC-4 and AC-6 name."
+    },
+    {
+      "name": "api",
+      "application_type": "backend-api",
+      "folder": "apps/api",
+      "stack": {
+        "standard": "backend-ts",
+        "architecture": "hexagonal"
+      },
+      "standard_file": "/context/standards/engineering/backend-ts.yaml",
+      "reason": "backend-ts with hexagonal is the only stack backend-api allows, and it fits the characteristics. Rule domain-is-pure puts aggregate CGM, gap detection and actual and unrealized improvement in src/domain with no I/O. AC-5 Calculation correctness requires this so those calculations can be unit-tested in isolation against fixtures. AC-7 Configurability: application-uses-ports and adapters-meet-at-main put the suggestion source behind one port, so replacing it touches only its adapter. A dependency check can confirm this. The thresholds (CGM target, material, falling window, after point) come in as configuration through main.ts with no rebuild. AC-2 Read-only safety: source systems are reached only through outbound ports that have read methods only, which the static no-write-method check needs. AC-1 Access isolation: every endpoint goes through an inbound port to a use case, so the entitlement check sits in the application layer and covers all endpoints. That is what the endpoint inventory test needs. AC-6 Plan data integrity: the rules that a plan is complete (each action has an owner and a target) run in the domain on the server, so direct API calls are refused as well. AC-3 Traceability: the domain models the chain recommendation -> decision -> action -> owner -> target -> outcome, and a persistence adapter keeps each decision record with its author and time. bun test at 80% coverage runs the AC-3, AC-5 and AC-6 suites."
+    }
+  ]
+}
