@@ -1,0 +1,6 @@
+name: cgm-coach-web
+description: Deploys cgm-coach-web to Cloud Run on GCP, with its image in Artifact Registry
+runtime:
+  name: nodejs
+  options:
+    packagemanager: bun

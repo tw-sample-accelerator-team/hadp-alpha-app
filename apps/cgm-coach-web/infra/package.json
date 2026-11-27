@@ -1,0 +1,19 @@
+{
+  "name": "cgm-coach-web-infra",
+  "private": true,
+  "main": "index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "preview": "pulumi preview --stack dev",
+    "deploy": "pulumi up --stack dev --yes"
+  },
+  "dependencies": {
+    "@pulumi/docker-build": "^0.0.23",
+    "@pulumi/gcp": "^10.5.0",
+    "@pulumi/pulumi": "^3.277.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0"
+  }
+}

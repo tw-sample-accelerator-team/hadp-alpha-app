@@ -1,0 +1,5 @@
+_src_path: /context/patterns/code_boilerplate_templates/frontend-react-hello-world-template
+api_base_url: http://localhost:3000
+gcp_project: ''
+gcp_region: us-central1
+name: cgm-coach-web
