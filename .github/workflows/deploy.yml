@@ -72,10 +72,10 @@ jobs:
       run:
         working-directory: apps/api
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with: { bun-version: "${{ env.BUN_VERSION }}" }
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.bun/install/cache
           key: bun-${{ runner.os }}-${{ hashFiles('**/bun.lock') }}
@@ -98,12 +98,12 @@ jobs:
       run:
         working-directory: apps/web
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with: { bun-version: "${{ env.BUN_VERSION }}" }
-      - uses: actions/setup-node@v4 # tsc, Vite and Vitest run on Node 22
+      - uses: actions/setup-node@v7 # tsc, Vite and Vitest run on Node 22
         with: { node-version-file: apps/web/.nvmrc }
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.bun/install/cache
           key: bun-${{ runner.os }}-${{ hashFiles('**/bun.lock') }}
@@ -136,17 +136,17 @@ jobs:
       run:
         working-directory: apps/api/infra
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with: { bun-version: "${{ env.BUN_VERSION }}" }
-      - uses: actions/setup-node@v4 # Pulumi's nodejs runtime
+      - uses: actions/setup-node@v7 # Pulumi's nodejs runtime
         with: { node-version: 22 }
-      - uses: google-github-actions/auth@v2
+      - uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ vars.GCP_API_DEPLOYER_SERVICE_ACCOUNT }}
-      - uses: google-github-actions/setup-gcloud@v2
-      - uses: docker/setup-buildx-action@v3 # Pulumi builds and pushes the image with buildx
+      - uses: google-github-actions/setup-gcloud@v3
+      - uses: docker/setup-buildx-action@v4 # Pulumi builds and pushes the image with buildx
       - name: Install Pulumi
         working-directory: .
         run: |
@@ -180,16 +180,16 @@ jobs:
       run:
         working-directory: apps/web/infra
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with: { bun-version: "${{ env.BUN_VERSION }}" }
-      - uses: actions/setup-node@v4 # the app build, Pulumi and the Firebase CLI run on Node
+      - uses: actions/setup-node@v7 # the app build, Pulumi and the Firebase CLI run on Node
         with: { node-version-file: apps/web/.nvmrc }
-      - uses: google-github-actions/auth@v2
+      - uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ vars.GCP_WEB_DEPLOYER_SERVICE_ACCOUNT }}
-      - uses: google-github-actions/setup-gcloud@v2
+      - uses: google-github-actions/setup-gcloud@v3
       - name: Install Pulumi
         working-directory: .
         run: |
