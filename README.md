@@ -28,4 +28,11 @@ bun run build   # builds every app
 bun run test    # runs every app's tests
 ```
 
+What the root scripts need:
+
+- Node 22 on the PATH (see `apps/web/.nvmrc`): Vitest and Playwright in `apps/web` run on Node.
+- The api's test Postgres: run `bun run db:up` in `apps/api` (Docker) before `bun run test`,
+  because its integration and e2e suites use a real database.
+- `apps/api` has no build step: Bun runs its TypeScript directly; `bun run typecheck` checks it.
+
 Each app's own README describes how to run it locally and how to deploy it.
