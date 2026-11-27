@@ -1,0 +1,33 @@
+{
+  "sources": {
+    "components": "docs/architecture/app-components.json",
+    "characteristics": "docs/architecture/architecture-characteristics.md",
+    "catalog": "/context/standards/application-types.yaml (version 0.5.0)"
+  },
+  "stacks": [
+    {
+      "component": "cgm-coach-web",
+      "application_type": "web-ui",
+      "stack": {
+        "standard": "frontend-react",
+        "architecture": "feature-folders"
+      },
+      "standard_file": "/context/standards/engineering/frontend-react.yaml",
+      "standard_version": "0.2.0",
+      "template": "patterns/code_boilerplate_templates/frontend-react-hello-world-template",
+      "reason": "frontend-react / feature-folders is the only stack application-types.yaml allows for web-ui, so it is the only catalog choice. It fits the characteristics as follows. AC-1 Security: entitlement isolation: the screens are a TypeScript React 19 client that holds no business rules or source data of its own; it renders only what cgm-coach-api returns, so entitlement is enforced in one place (the API) and the UI routes can be added to the AC-1 entitlement test matrix with vitest. AC-2 Safety: read-only toward source data: the UI talks only to cgm-coach-api and has no path to source stores, so it adds no write path. AC-3 Traceability and AC-4 Explainability: the feature-folders rule features-are-independent (a feature imports only from src/shared) lets the CGM view, gaps and evidence, plans, execution status and history (FR-1 to FR-4, FR-6 to FR-8) live as separate features while evidence links and plan/decision displays share one component set in src/shared. AC-5 Computational correctness: values are computed in the API and only displayed here, so the UI cannot introduce rounding drift; the vitest suite (coverage_min 70) can assert history view values equal plan view values (FR-8.2). AC-7 Deployability on the mandated platform: the vite build gives static assets that the pipeline can deploy into alpha-dev-80ca / us-central1; the standard itself does not name a host, so the hosting service is left to the infrastructure step."
+    },
+    {
+      "component": "cgm-coach-api",
+      "application_type": "backend-api",
+      "stack": {
+        "standard": "backend-ts",
+        "architecture": "hexagonal"
+      },
+      "standard_file": "/context/standards/engineering/backend-ts.yaml",
+      "standard_version": "0.2.0",
+      "template": "patterns/code_boilerplate_templates/backend-ts-hex-hello-world-template",
+      "reason": "backend-ts / hexagonal is the only stack application-types.yaml allows for backend-api, so it is the only catalog choice. It fits the characteristics as follows. AC-5 Computational correctness and AC-6 Configurability of business rules: the rule domain-is-pure keeps the CGM, gap, comparison, shortfall and effectiveness calculations (FR-1.1, FR-2.1, FR-6.4, FR-6.5, FR-7.3, FR-8.3) in src/domain with no framework or adapter imports, so they can be tested against seeded fixtures with bun test (coverage_min 80), and the rule values arrive through a configuration port rather than literals in code. The standard does not fix a decimal type; exact money and percentage arithmetic (no binary floating-point drift) remains an implementation obligation that the AC-5 fixture suite checks. AC-2 Safety: read-only toward source data: application-uses-ports and adapters-meet-at-main mean source financial data is reached only through an outbound port wired in src/main.ts; that port can be defined read-only, which the AC-2 endpoint inventory test and IAM review can check at one boundary. AC-1 Security: entitlement isolation: every HTTP request enters through an inbound adapter and an inbound port, so the entitlement check sits in the application layer in front of every use case and the AC-1 route inventory test has one place to enumerate endpoints. AC-3 Traceability and auditability: plans, decision records and status history are stored through a repository port, so the append-only rule (FR-4.5, FR-4.6, FR-6.2, FR-8.1) is enforced in the use cases independent of the store chosen. AC-7 Deployability on the mandated platform: a TypeScript service on bun or node runs as a container the pipeline can deploy into alpha-dev-80ca / us-central1; the standard does not name a host, so the runtime service is left to the infrastructure step."
+    }
+  ]
+}
