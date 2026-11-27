@@ -10,7 +10,7 @@ name: Deploy
 
 on:
   push:
-    branches: [main]
+    branches: [main, "hadp/apt-muhilvar-cd7a44-deploy/work"] # TEMP: test run from the feature branch
     paths:
       - "apps/**"
       - "package.json"
