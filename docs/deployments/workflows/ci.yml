@@ -1,0 +1,112 @@
+name: ci
+
+# Checks every app on pull requests: install, typecheck, lint, test and build. No GCP access,
+# no id-token. Pushes to main and hadp/** are built and deployed by deploy.yml.
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: api_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U app -d api_test"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      # Throwaway CI database in the service container above; real env vars beat .env.test.
+      DATABASE_URL: postgres://app:app@localhost:5432/api_test
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+        working-directory: .
+      - run: bun run typecheck
+      - run: bun run lint
+      - run: bun run test:unit --coverage
+      - run: bun run test:integration
+      - run: bun run test:e2e
+      - run: bun install --frozen-lockfile
+        working-directory: apps/api/infra
+      - run: bun run typecheck
+        working-directory: apps/api/infra
+
+  web-static-analysis:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version-file: apps/web/package.json }
+      - uses: actions/setup-node@v4 # Vitest, Playwright and Pulumi run on Node
+        with: { node-version-file: apps/web/.nvmrc }
+      - run: bun install --frozen-lockfile
+        working-directory: .
+      - run: bun run typecheck
+      - run: bun run lint
+      - run: bun run format:check
+      - run: bun run knip
+      - run: bun run build
+      - run: bun install --frozen-lockfile
+        working-directory: apps/web/infra
+      - run: bun run typecheck
+        working-directory: apps/web/infra
+
+  web-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version-file: apps/web/package.json }
+      - uses: actions/setup-node@v4
+        with: { node-version-file: apps/web/.nvmrc }
+      - run: bun install --frozen-lockfile
+        working-directory: .
+      - run: bun run test
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: web-coverage, path: apps/web/coverage/, retention-days: 7 }
+
+  web-e2e:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version-file: apps/web/package.json }
+      - uses: actions/setup-node@v4
+        with: { node-version-file: apps/web/.nvmrc }
+      - run: bun install --frozen-lockfile
+        working-directory: .
+      - run: bunx playwright install --with-deps
+      - run: bun run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: web-playwright-report, path: apps/web/playwright-report/, retention-days: 7 }

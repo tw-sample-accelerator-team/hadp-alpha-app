@@ -1,0 +1,149 @@
+name: deploy
+
+# Builds and deploys every app of the monorepo to the dev stack in GCP. Each deploy job signs in
+# as its app's deployer service account through Workload Identity Federation (OIDC): no key.
+# One-time setup by a person: docs/deployments/oidc-setup.md (infra/scripts/provision-github-oidc.sh).
+# It sets the repository variables GCP_WORKLOAD_IDENTITY_PROVIDER and GCP_DEPLOYER_SA_<APP>.
+
+on:
+  push:
+    branches: [main, 'hadp/**'] # hadp/** lets the run's branch prove the pipeline before it merges
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+
+jobs:
+  # --- api: Bun + Hono backend on Cloud Run, Cloud SQL Postgres -------------------------------
+  build-api:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: api_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U app -d api_test"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      # Throwaway CI database in the service container above; real env vars beat .env.test.
+      DATABASE_URL: postgres://app:app@localhost:5432/api_test
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+        working-directory: .
+      - run: bun run typecheck
+      - run: bun run lint
+      - run: bun run test:unit --coverage
+      - run: bun run test:integration
+      - run: bun run test:e2e
+      - run: bun install --frozen-lockfile
+        working-directory: apps/api/infra
+      - run: bun run typecheck
+        working-directory: apps/api/infra
+
+  deploy-api:
+    needs: build-api
+    runs-on: ubuntu-latest
+    environment: dev
+    permissions:
+      contents: read
+      id-token: write # only the deploy jobs mint an OIDC token
+    env:
+      PULUMI_SKIP_UPDATE_CHECK: 'true'
+    defaults:
+      run:
+        working-directory: apps/api/infra
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SA_API }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - uses: docker/setup-buildx-action@v3
+      - name: Install Pulumi
+        run: |
+          curl -fsSL https://get.pulumi.com | sh
+          echo "$HOME/.pulumi/bin" >> "$GITHUB_PATH"
+      - run: bun install --frozen-lockfile
+      - run: bun run deploy --stack dev
+      - name: Service url
+        env:
+          PULUMI_CONFIG_PASSPHRASE: '' # the templates' passphrase provider uses an empty passphrase
+        run: echo "api url=$(pulumi stack output url --stack dev)" >> "$GITHUB_STEP_SUMMARY"
+
+  # --- web: React + Vite frontend on Firebase Hosting -----------------------------------------
+  build-web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version-file: apps/web/package.json }
+      - uses: actions/setup-node@v4 # Vitest, the build and Pulumi run on Node
+        with: { node-version-file: apps/web/.nvmrc }
+      - run: bun install --frozen-lockfile
+        working-directory: .
+      - run: bun run typecheck
+      - run: bun run lint
+      - run: bun run format:check
+      - run: bun run test
+      - run: bun run build
+      - run: bun install --frozen-lockfile
+        working-directory: apps/web/infra
+      - run: bun run typecheck
+        working-directory: apps/web/infra
+
+  deploy-web:
+    needs: build-web
+    runs-on: ubuntu-latest
+    environment: dev
+    permissions:
+      contents: read
+      id-token: write # only the deploy jobs mint an OIDC token
+    env:
+      PULUMI_SKIP_UPDATE_CHECK: 'true'
+    defaults:
+      run:
+        working-directory: apps/web/infra
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version-file: apps/web/package.json }
+      - uses: actions/setup-node@v4 # the app build (tsc, vite) and Pulumi run on Node
+        with: { node-version-file: apps/web/.nvmrc }
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SA_WEB }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Install Pulumi
+        run: |
+          curl -fsSL https://get.pulumi.com | sh
+          echo "$HOME/.pulumi/bin" >> "$GITHUB_PATH"
+      - run: bun install --frozen-lockfile # the app's own dependencies, for the build deploy runs
+        working-directory: .
+      - run: bun install --frozen-lockfile
+      - run: bun run deploy --stack dev # builds apps/web, then releases dist to Firebase Hosting
+      - name: Site url
+        env:
+          PULUMI_CONFIG_PASSPHRASE: '' # the templates' passphrase provider uses an empty passphrase
+        run: echo "web url=$(pulumi stack output url --stack dev)" >> "$GITHUB_STEP_SUMMARY"
