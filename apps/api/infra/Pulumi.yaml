@@ -1,0 +1,11 @@
+name: api
+description: Deploys api to Cloud Run on GCP, with a private Cloud SQL Postgres on its own VPC
+runtime:
+  name: nodejs
+  options:
+    packagemanager: bun
+# State lives in a GCS bucket. `bun run setup` creates it, and preview, deploy and destroy
+# run setup first. Stacks in a bucket are scoped by project, so services can share one.
+# Set the bucket; `bun run setup` creates it:
+# backend:
+#   url: gs://<project>-pulumi-state
