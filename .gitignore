@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Test reports
+playwright-report/
+test-results/
+
+# Local env files (each app's own .gitignore decides on its committed, non-secret defaults)
+/.env
+.env.local
+.env.*.local
+
+# OS and editor
+.DS_Store

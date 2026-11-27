@@ -1,0 +1,9 @@
+{
+  "name": "delivery-commercial-governance",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "build": "bun run --filter './apps/*' build",
+    "test": "bun run --filter './apps/*' test"
+  }
+}
