@@ -15,7 +15,7 @@ These are the top seven characteristics, in priority order. Each one has a measu
 | AC-4 | Availability and fault isolation | 99.5% availability Monday 00:00 to Friday 24:00 UTC; a tracker or PA-backend outage never breaks the rest of PA | FR-1, FR-20; PRD §6 Availability |
 | AC-5 | Data integrity, auditability and recoverability | 100% of creates and status changes have one append-only history row; 0 lost updates; RPO 24 h, RTO 4 h, daily backups kept 7 days | FR-7, FR-12, FR-17, FR-18, FR-19; PRD §6 Auditability, Data protection, Privacy |
 | AC-6 | Embeddability (interoperability with PA) | Works in PA's iframe through PA's existing token bridge with no bridge change; token handshake ≤ 3 s; no horizontal scroll at 900 px | FR-1, FR-2, FR-23; PRD §3 (0% separate sign-in), §6 Embedding, §7 |
-| AC-7 | Accessibility | WCAG 2.1 AA for the list and the form: 0 serious or critical axe violations; every field and control usable by keyboard and labelled | FR-3, FR-5, FR-6, FR-8, FR-9, FR-10, FR-14, FR-16; PRD §6 Accessibility |
+| AC-7 | Accessibility | WCAG 2.1 AA for the list and the form: 0 serious or critical axe violations; every field and control usable by keyboard and labelled | FR-3, FR-5, FR-6, FR-8, FR-9, FR-10, FR-14, FR-16, FR-17; PRD §6 Accessibility |
 
 ## AC-1 Security: authentication and token confidentiality
 
@@ -82,7 +82,7 @@ These are the top seven characteristics, in priority order. Each one has a measu
 
 - **Why.** The list and the form must meet WCAG 2.1 AA (PRD §6 Accessibility).
 - **Target.**
-  - 0 serious or critical axe violations on the list, empty state, create form (with field errors shown) and status control (FR-3, FR-5, FR-6, FR-8 to FR-10, FR-14, FR-16).
+  - 0 serious or critical axe violations on the list, empty state, create form (with field errors shown) and status control (FR-3, FR-5, FR-6, FR-8 to FR-10, FR-14, FR-16, FR-17).
   - 100% of form fields have a visible label, and each field error is announced and linked to its field (FR-8 to FR-10).
   - Every action (create, pick project, search owner, save, change status) can be done by keyboard alone.
 - **How to check.** axe checks in the Playwright E2E run for each state; a scripted keyboard-only walkthrough of create and status change; a manual screen-reader check before release.
