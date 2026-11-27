@@ -1,0 +1,12 @@
+{
+  "name": "cgm-actions-tracker",
+  "private": true,
+  "workspaces": [
+    "apps/web",
+    "apps/api"
+  ],
+  "scripts": {
+    "build": "bun run --filter web build",
+    "test": "bun run --filter web test && bun run --filter api test:unit"
+  }
+}
