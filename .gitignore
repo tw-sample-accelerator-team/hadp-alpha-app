@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+build/
+coverage/
+*.tsbuildinfo
+
+# Test output
+playwright-report/
+test-results/
+blob-report/
+
+# Local env files (committed defaults such as apps/web/.env stay tracked)
+.env.local
+.env.*.local
+
+# Logs and OS files
+*.log
+.DS_Store
