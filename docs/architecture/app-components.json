@@ -1,0 +1,20 @@
+{
+  "schema": "app-components@1",
+  "catalog": "application-types",
+  "components": [
+    {
+      "name": "web",
+      "application_type": "web-ui",
+      "folder": "apps/web",
+      "purpose": "The browser screens people use to view entitlement, gaps, suggestions, plans, status and history.",
+      "key_frs": ["FR-1", "FR-2", "FR-3", "FR-4", "FR-5", "FR-6", "FR-7", "FR-10", "FR-11", "FR-12", "FR-13", "FR-14"]
+    },
+    {
+      "name": "api",
+      "application_type": "backend-api",
+      "folder": "apps/api",
+      "purpose": "The service that holds the business rules, stores plans and decision records, and serves them over HTTP.",
+      "key_frs": ["FR-1", "FR-2", "FR-3", "FR-4", "FR-5", "FR-6", "FR-7", "FR-8", "FR-9", "FR-10", "FR-11", "FR-12", "FR-13", "FR-14"]
+    }
+  ]
+}
