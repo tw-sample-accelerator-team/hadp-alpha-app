@@ -1,0 +1,6 @@
+_src_path: /context/patterns/code_boilerplate_templates/frontend-react-vite-template
+api_base_url: http://localhost:3000
+app_name: web
+gcp_project: ''
+gcp_region: us-central1
+pulumi_state_bucket: ''
