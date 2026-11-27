@@ -1,5 +1,14 @@
+# Only package.json, tsconfig.json and src/ belong in the image.
+.git
+.gitignore
 node_modules
 infra
 test
 coverage
+dist
+*.log
+.env
+.env.*
 .copier-answers.yml
+Dockerfile
+.dockerignore
