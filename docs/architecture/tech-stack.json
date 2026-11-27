@@ -1,0 +1,41 @@
+{
+  "schema": "hadp/tech-stack@1",
+  "catalog": "application-types@0.6.0",
+  "sources": [
+    "docs/architecture/app-components.json",
+    "docs/architecture/architecture-characteristics.md",
+    "/context/standards/application-types.yaml"
+  ],
+  "components": [
+    {
+      "name": "web",
+      "application_type": "web-ui",
+      "folder": "apps/web",
+      "stack": {
+        "standard": "frontend-react",
+        "architecture": "feature-folders"
+      },
+      "standard_file": "/context/standards/engineering/frontend-react.yaml",
+      "standard_version": "0.3.0",
+      "template": "patterns/code_boilerplate_templates/frontend-react-vite-template",
+      "alternatives_in_catalog": [],
+      "reason": "frontend-react with feature-folders is the only stack the catalog allows for web-ui, and it fits the web component's characteristics. AC-6 (embeddability): a Vite-built React 19 single-page app is static files served into PA's iframe; the token handshake with PA's existing bridge (postMessage) and the 'open it from Project Accounting' and session-ended states are client-side logic that needs no change to PA's bridge, and the 900 px no-horizontal-scroll target is a layout concern the UI owns. AC-1 (token confidentiality): the token from the bridge can be held in React state in memory only, so it never reaches localStorage, sessionStorage, cookies or URLs, and the app stops API calls on the session-end message (FR-23). AC-7 (accessibility): function components with labelled form fields, linked error messages and keyboard-operable controls meet the WCAG 2.1 AA target, checked by axe in the E2E run. AC-3 (performance) and AC-4 (fault isolation): a Vite production build keeps the first load small for the p95 < 1.5 s list target, and the iframe plus a component-level error state keeps a tracker or PA-backend outage contained to the tab. The feature-folders rule (features never import each other) keeps the list, create form and status control independent, and vitest with 80% coverage supports the per-state test checks.",
+      "characteristics": ["AC-1", "AC-3", "AC-4", "AC-6", "AC-7"]
+    },
+    {
+      "name": "api",
+      "application_type": "backend-api",
+      "folder": "apps/api",
+      "stack": {
+        "standard": "backend-ts",
+        "architecture": "hexagonal"
+      },
+      "standard_file": "/context/standards/engineering/backend-ts.yaml",
+      "standard_version": "0.3.0",
+      "template": "patterns/code_boilerplate_templates/backend-ts-hex-drizzle-template",
+      "alternatives_in_catalog": [],
+      "reason": "backend-ts with hexagonal is the only stack the catalog allows for backend-api, and it fits the api component's characteristics. AC-2 (authorisation fidelity): PA's backend is reached through an outbound port with an adapter that calls it with the user's own token, so every list, create and status-update use case asks the same access check and can be tested with a 'no access' stub (local mode) for the 403 matrix; the at-most-5-minute access cache sits in that adapter. AC-1 (authentication): per-environment PA Okta token validation is one inbound adapter or middleware in front of every /api/* route, so the five-case 401 matrix is checked in one place. AC-5 (data integrity and auditability): the pure domain (domain-is-pure rule) holds the action rules, validation and stale-update refusal, and the template's Drizzle persistence adapter for Postgres can write the action change and its append-only history row in one transaction, tested against a real Postgres. AC-4 (fault isolation): failures from PA's backend or the database surface at the adapter boundary and map to a clear error the web shows, without leaking into domain code. AC-3 (performance): a TypeScript service on Bun or Node handles the small fixed load (30 concurrent users) and logs per-request and PA-call timings for the p95 checks. The rules application-uses-ports and adapters-meet-at-composition-root keep the PA client and the database swappable for stubs in tests, and bun test with 80% coverage backs the API test checks.",
+      "characteristics": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    }
+  ]
+}
