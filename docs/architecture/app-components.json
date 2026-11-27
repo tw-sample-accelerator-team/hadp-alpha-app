@@ -1,0 +1,20 @@
+{
+  "components": [
+    {
+      "name": "cgm-coach-web",
+      "application_type": "web-ui",
+      "folder": "apps/cgm-coach-web",
+      "purpose": "The browser screens where Delivery Managers, CLT members and action owners view account CGM, gaps, suggestions, plans, execution status and history, and record plans and action status.",
+      "covers": ["FR-1", "FR-2", "FR-3", "FR-4", "FR-6", "FR-7", "FR-8"],
+      "rationale": "application-types.yaml web-ui use_when: a key FR has a person viewing or changing data in a browser. Every key FR above has a signed-in user opening a view or saving a plan or status."
+    },
+    {
+      "name": "cgm-coach-api",
+      "application_type": "backend-api",
+      "folder": "apps/cgm-coach-api",
+      "purpose": "The service that enforces sign-in and account entitlement, computes CGM, gaps, drivers, suggestions, comparisons and effectiveness from configured rules, reads source financial data read-only, and stores plans, decision records and status history.",
+      "covers": ["FR-1", "FR-2", "FR-3", "FR-4", "FR-5", "FR-6", "FR-7", "FR-8"],
+      "rationale": "application-types.yaml backend-api use_when: a key FR needs business rules, stored data or an API. FR-1.3 to FR-1.5 and FR-8.5 need entitlement enforced on API calls (AC-1); FR-1.1, FR-2, FR-6.4, FR-7.3, FR-8.3 need business-rule calculations (AC-5, AC-6); FR-4.5, FR-4.6, FR-6.2, FR-8.1 need stored, append-only records (AC-3); FR-5 needs a read-only boundary to source data (AC-2)."
+    }
+  ]
+}
