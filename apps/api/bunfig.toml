@@ -1,0 +1,4 @@
+[test]
+# Suites are split by folder (see package.json): unit tests never touch the
+# database; integration and e2e opt in with --preload ./test/support/database.preload.ts.
+coverageSkipTestFiles = true
