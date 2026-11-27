@@ -1,0 +1,11 @@
+roles/browser
+roles/serviceusage.serviceUsageAdmin
+roles/compute.networkAdmin
+roles/servicenetworking.networksAdmin
+roles/cloudsql.admin
+roles/secretmanager.admin
+roles/artifactregistry.admin
+roles/run.admin
+roles/iam.serviceAccountAdmin
+roles/iam.serviceAccountUser
+roles/logging.viewer
