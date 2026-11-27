@@ -1,0 +1,6 @@
+name: cgm-coach-api
+description: Deploys cgm-coach-api to Cloud Run on GCP, with its image in Artifact Registry
+runtime:
+  name: nodejs
+  options:
+    packagemanager: bun

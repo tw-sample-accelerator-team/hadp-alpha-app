@@ -1,0 +1,6 @@
+_src_path: /context/patterns/code_boilerplate_templates/backend-ts-hex-hello-world-template
+description: A backend service
+gcp_project: ''
+gcp_region: us-central1
+http_port: 3000
+name: cgm-coach-api
