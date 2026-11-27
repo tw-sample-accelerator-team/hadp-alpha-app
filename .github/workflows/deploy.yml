@@ -153,10 +153,15 @@ jobs:
           curl -fsSL https://get.pulumi.com | sh -s -- --version "$PULUMI_VERSION"
           echo "$HOME/.pulumi/bin" >> "$GITHUB_PATH"
       - name: Deploy (setup, image build + push, migrations, Cloud Run)
-        run: bun run deploy --stack "$STACK"
+        # --refresh re-reads the real cloud state first, so a resource left broken by a failed
+        # run (or changed by hand) is repaired instead of being reported as "unchanged".
+        run: bun run deploy --stack "$STACK" --refresh
       - name: Read stack outputs
         id: outputs
-        run: echo "url=$(pulumi stack output url --stack "$STACK")" >> "$GITHUB_OUTPUT"
+        run: |
+          url=$(pulumi stack output url --stack "$STACK")
+          if [ -z "$url" ]; then echo "::error::stack $STACK has no url output; the deploy did not finish"; exit 1; fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
       - name: Smoke test GET /health
         env:
           URL: ${{ steps.outputs.outputs.url }}
@@ -196,10 +201,15 @@ jobs:
           curl -fsSL https://get.pulumi.com | sh -s -- --version "$PULUMI_VERSION"
           echo "$HOME/.pulumi/bin" >> "$GITHUB_PATH"
       - name: Deploy (setup, vite build, Hosting site + release)
-        run: bun run deploy --stack "$STACK"
+        # --refresh re-reads the real cloud state first, so a resource left broken by a failed
+        # run (or changed by hand) is repaired instead of being reported as "unchanged".
+        run: bun run deploy --stack "$STACK" --refresh
       - name: Read stack outputs
         id: outputs
-        run: echo "url=$(pulumi stack output url --stack "$STACK")" >> "$GITHUB_OUTPUT"
+        run: |
+          url=$(pulumi stack output url --stack "$STACK")
+          if [ -z "$url" ]; then echo "::error::stack $STACK has no url output; the deploy did not finish"; exit 1; fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
       - name: Smoke test GET /
         env:
           URL: ${{ steps.outputs.outputs.url }}
