@@ -1,5 +1,5 @@
-# Vision: Delivery Commercial Governance
+# Vision: CGM Actions Tracker
 
-Delivery Managers and the Client Leadership Team (CLT) govern each account's profitability as one loop: see where CGM falls short across the account's projects, decide what to change and who owns it, and measure what those decisions actually achieved.
+Every CGM improvement an account team agrees to has an owner, a target and a status that anyone in the next account review can see.
 
-The CGM Coach turns scattered project financials into evidence, evidence into recorded decisions with owners, and decisions into a measured before-and-after effect, so every commercial decision on an account can be traced to its outcome.
+When a CLT reviews an account in Project Accounting, they turn each agreed decision into a tracked action in the same screen. At the next review they open the same account and see straight away what was agreed, who owns it and where it stands, with no spreadsheet or meeting notes to dig out. Later releases will measure the CGM each action actually delivered against its target.
