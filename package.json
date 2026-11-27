@@ -1,0 +1,12 @@
+{
+  "name": "cgm-coach",
+  "private": true,
+  "workspaces": [
+    "apps/cgm-coach-web",
+    "apps/cgm-coach-api"
+  ],
+  "scripts": {
+    "build": "bun run --filter cgm-coach-web build && bun run --filter cgm-coach-api typecheck",
+    "test": "bun run --filter '*' test"
+  }
+}

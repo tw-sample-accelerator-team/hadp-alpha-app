@@ -1,0 +1,3 @@
+[install]
+# Hoist dependencies so tsc finds transitive type packages such as bun-types.
+linker = "hoisted"
