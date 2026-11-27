@@ -6,6 +6,5 @@ runtime:
     packagemanager: bun
 # State lives in a GCS bucket. `bun run setup` creates it, and preview, deploy and destroy
 # run setup first. Stacks in a bucket are scoped by project, so services can share one.
-# Set the bucket; `bun run setup` creates it:
-# backend:
-#   url: gs://<project>-pulumi-state
+backend:
+  url: gs://alpha-dev-80ca-pulumi-state

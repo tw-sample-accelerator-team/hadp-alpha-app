@@ -1,6 +1,9 @@
 config:
-  # gcp:project: <project-id>
+  gcp:project: alpha-dev-80ca
   gcp:region: us-central1
   # Optional (`bun run pulumi config set <key> <value>` writes them here):
   #   web:siteId: my-site-id              defaults to <app>-<stack>-<random, per stack>; see site-id.ts
   #   web:apiCloudRunService: my-backend  forward /api/** to this Cloud Run service (in gcp:region)
+  # Firebase Hosting forwards /api/** to the api's Cloud Run service (apps/api, stack dev).
+  web:apiCloudRunService: api-dev
+encryptionsalt: v1:TAc8HvgW6bY=:v1:D6ApQ50PkP02o2FO:tR/u5BLdlEsjApXfjgPJyJxZkmslyQ==

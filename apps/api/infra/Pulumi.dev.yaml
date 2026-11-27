@@ -1,5 +1,6 @@
 config:
-  # gcp:project: <project-id>
+  gcp:project: alpha-dev-80ca
   gcp:region: us-central1
   # A dev stack can be torn down; keep the default (true) for any stack with real data.
-  api:deletionProtection: false
+  api:deletionProtection: "false"
+encryptionsalt: v1:pkhTgM3LKO8=:v1:7+QEKgqprUSeVJvl:M+rbqMDALor4YH/npK0goRnvxMzhtA==
