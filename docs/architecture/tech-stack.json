@@ -1,0 +1,35 @@
+{
+  "source": {
+    "app_components": "docs/architecture/app-components.json",
+    "architecture_characteristics": "docs/architecture/architecture-characteristics.md",
+    "catalog": "/context/standards/application-types.yaml",
+    "catalog_version": "0.6.0"
+  },
+  "iteration": 0,
+  "stacks": [
+    {
+      "component": "web",
+      "application_type": "web-ui",
+      "folder": "apps/web",
+      "stack": "frontend-react",
+      "standard": "frontend-react",
+      "architecture": "feature-folders",
+      "standard_file": "/context/standards/engineering/frontend-react.yaml",
+      "standard_version": "0.3.0",
+      "template": "patterns/code_boilerplate_templates/frontend-react-vite-template",
+      "reason": "frontend-react with feature-folders is the only stack the catalog allows for web-ui, and it fits the characteristics. AC-7 Testability: the standard fixes vitest with an 80% coverage minimum, so the screens behind FR-1 and FR-4 to FR-18 get automated tests on seeded fixtures with fakes for the API, and the iteration-0 monorepo runs at least one web test in CI. AC-6 Modifiability: the features-are-independent rule (a feature never imports another feature, only src/shared) keeps each screen area (overview, signals and evidence, plans, action status, history) in its own folder, so a change to one area stays in one place. AC-4 Explainability: evidence links, change and expected-impact fields for gaps, drivers and suggestions (FR-5, FR-6, FR-7) render as function components in their own feature and are covered by the same vitest suite. AC-1 Security: the web only presents data; entitlement checks stay on the server in the api component, as AC-1 requires (a hidden UI control does not count), so the stack needs no client-side access logic. The bun package manager matches the bun workspace in project-layout.yaml."
+    },
+    {
+      "component": "api",
+      "application_type": "backend-api",
+      "folder": "apps/api",
+      "stack": "backend-ts",
+      "standard": "backend-ts",
+      "architecture": "hexagonal",
+      "standard_file": "/context/standards/engineering/backend-ts.yaml",
+      "standard_version": "0.3.0",
+      "template": "patterns/code_boilerplate_templates/backend-ts-hex-drizzle-template",
+      "reason": "backend-ts with hexagonal is the only stack the catalog allows for backend-api, and it fits the characteristics. AC-6 Modifiability: the hexagonal rules domain-is-pure, application-uses-ports and adapters-meet-at-composition-root put the CGM formula, target, materiality, falling window, after point and suggestion method in src/domain modules, and put project financial data, entitlements and the identity provider each behind one port with one adapter, so swapping a source changes one adapter only; these rules are the architecture test AC-6 asks for. AC-2 Safety: source data reaches the domain only through read ports, so an architecture test can fail the build if a source-data adapter exposes a write operation, and the CGM Coach's own store for plans, actions and decision records is a separate adapter (FR-13). AC-1 Security: every account-scoped route goes through one application layer, so sign-in and entitlement checks run on the server for every request and an authorization-matrix test can enumerate every route (FR-2, FR-3, FR-14). AC-5 Correctness: the pure domain has no framework or I/O imports, so calculations are deterministic and unit-tested against fixture tables (FR-1, FR-4, FR-15, FR-16, FR-18). AC-3 Traceability: the store adapter from the drizzle-based template holds the plan, action, owner and outcome links and plan versions (FR-10, FR-11, FR-12, FR-17). AC-7 Testability: bun test with an 80% coverage minimum, plus fakes for every port, lets every key FR run as an acceptance test with no network access to real sources or identity provider."
+    }
+  ]
+}
