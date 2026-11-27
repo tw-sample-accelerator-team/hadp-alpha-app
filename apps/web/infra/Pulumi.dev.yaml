@@ -1,0 +1,6 @@
+config:
+  gcp:project: alpha-dev-80ca
+  gcp:region: us-central1
+  # Optional (`bun run pulumi config set <key> <value>` writes them here):
+  #   web:siteId: my-site-id              defaults to <app>-<stack>-<random, per stack>; see site-id.ts
+  #   web:apiCloudRunService: my-backend  forward /api/** to this Cloud Run service (in gcp:region)

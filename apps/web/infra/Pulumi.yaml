@@ -1,0 +1,10 @@
+name: web
+description: Deploys web to Firebase Hosting on an existing GCP project
+runtime:
+  name: nodejs
+  options:
+    packagemanager: bun
+# State lives in a GCS bucket. `bun run setup` creates it, and preview, deploy and destroy
+# run setup first. Stacks in a bucket are scoped by project, so apps can share one.
+backend:
+  url: gs://alpha-dev-80ca-pulumi-state
