@@ -1,0 +1,35 @@
+{
+  "schema": "hadp/app-components@1",
+  "catalog": "application-types@0.6.0",
+  "sources": [
+    "docs/requirements/key-frs.md",
+    "docs/architecture/architecture-characteristics.md",
+    "docs/product/prd.md"
+  ],
+  "components": [
+    {
+      "name": "web",
+      "application_type": "web-ui",
+      "folder": "apps/web",
+      "purpose": "The Actions Tracker screens embedded in PA Account Level View: the actions list, empty state, create form, status control, and the access-denied and session-ended states. Gets the user's PA Okta token through PA's existing iframe token bridge and calls the api.",
+      "why": "Key FRs have a person viewing or changing actions in a browser (catalog use_when for web-ui).",
+      "covers_frs": ["FR-1", "FR-3", "FR-4", "FR-5", "FR-6", "FR-8", "FR-9", "FR-10", "FR-12", "FR-14", "FR-16", "FR-17", "FR-19", "FR-20", "FR-23"],
+      "characteristics": ["AC-1", "AC-3", "AC-4", "AC-6", "AC-7"]
+    },
+    {
+      "name": "api",
+      "application_type": "backend-api",
+      "folder": "apps/api",
+      "purpose": "The tracker service: validates PA Okta tokens per environment, asks PA's backend with the user's own token for account access, projects and people, holds the action rules and validation, and owns the actions and append-only history data.",
+      "why": "Key FRs need business rules, stored data and an API (catalog use_when for backend-api).",
+      "covers_frs": ["FR-1", "FR-4", "FR-5", "FR-6", "FR-7", "FR-8", "FR-9", "FR-10", "FR-11", "FR-12", "FR-13", "FR-15", "FR-17", "FR-18", "FR-19", "FR-20", "FR-21", "FR-22"],
+      "characteristics": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    }
+  ],
+  "not_a_component": [
+    {
+      "fr": "FR-2",
+      "reason": "The Actions Tracker tab and its single-account and CGM_ACTIONS_TRACKER rollout gating are built in PA's own Account Level View by the PA team (PRD section 7; AC-6: PA-side change limited to the tab, iframe and per-environment config). No tracker component shows or hides the entry."
+    }
+  ]
+}
