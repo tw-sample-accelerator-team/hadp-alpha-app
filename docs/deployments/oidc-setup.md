@@ -14,7 +14,7 @@ on every push.
 | Pulumi state bucket | `alpha-dev-80ca-pulumi-state` |
 | Workload Identity pool / provider | `github` / `github` (shared by every app) |
 | Setup script | `infra/scripts/provision-github-oidc.sh` |
-| Deploy workflow | `.github/workflows/deploy.yml` |
+| Deploy workflow | `.github/workflows/deploy.yml`, waiting in `docs/deployments/workflows/` until you push it (step 5) |
 
 ## 1. Before you start
 
@@ -164,9 +164,35 @@ gh variable set GCP_DEPLOYER_SA_API --repo tw-sample-accelerator-team/hadp-alpha
 gh variable set GCP_DEPLOYER_SA_WEB --repo tw-sample-accelerator-team/hadp-alpha-app --body web-deployer@alpha-dev-80ca.iam.gserviceaccount.com
 ```
 
-## 5. Anything else to push
+## 5. Push the workflow files
 
-Nothing else: `.github/workflows/deploy.yml` and `.github/workflows/ci.yml` are already on the
-branch. IAM can take about five minutes to propagate after the apply; a
-`getAccessToken denied` error in the first run right after it usually only needs a rerun of the
-failed jobs.
+The worker's GitHub token has no `workflow` scope, so GitHub refused its push of
+`.github/workflows/*`. The two workflows wait in `docs/deployments/workflows/`. Push them
+yourself, **after steps 3 and 4**: the push starts the deploy run, which needs the OIDC setup
+and the variables in place.
+
+Your `gh` or git credential needs the `workflow` scope (classic token), or Contents and
+Workflows: write (fine-grained). If `gh auth status` does not list `workflow`, run
+`gh auth refresh -s workflow` (and `gh auth setup-git` so git uses it).
+
+From the repository root, on the branch from step 1:
+
+```bash
+git pull --ff-only origin hadp/apt-muhilvar-66e7c2-deploy/work
+mkdir -p .github/workflows
+git mv docs/deployments/workflows/deploy.yml .github/workflows/deploy.yml
+git mv docs/deployments/workflows/ci.yml .github/workflows/ci.yml
+git commit -m "ci: build and deploy every app to GCP from root workflows with OIDC"
+git push origin HEAD:refs/heads/hadp/apt-muhilvar-66e7c2-deploy/work
+```
+
+The push runs `deploy` on the branch. Follow it with:
+
+```bash
+gh run list --repo tw-sample-accelerator-team/hadp-alpha-app --workflow deploy.yml --branch hadp/apt-muhilvar-66e7c2-deploy/work --limit 1
+gh run watch <run id> --repo tw-sample-accelerator-team/hadp-alpha-app --exit-status
+```
+
+IAM can take about five minutes to propagate after the apply; a `getAccessToken denied` error
+in the first run right after it usually only needs
+`gh run rerun <run id> --repo tw-sample-accelerator-team/hadp-alpha-app --failed`.
