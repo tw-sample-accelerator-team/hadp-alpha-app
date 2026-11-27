@@ -1,0 +1,11 @@
+# Changes here will be overwritten by Copier; do not edit manually
+_src_path: /context/patterns/code_boilerplate_templates/backend-ts-hex-drizzle-template
+database_name: api
+description: A backend service
+gcp_project: alpha-dev-80ca
+gcp_region: us-central1
+http_port: 3000
+postgres_port: 55432
+postgres_test_port: 55433
+pulumi_state_bucket: alpha-dev-80ca-pulumi-state
+service_name: api
