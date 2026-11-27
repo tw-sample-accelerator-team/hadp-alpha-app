@@ -103,12 +103,43 @@ bun run db:up                                       # docker compose; needs `doc
 bun run typecheck && bun run lint && bun run test:unit && bun run test:integration && bun run test:e2e
 ```
 
-## 4. One-time setup (GCP project admin)
+## 4. Pre-flight: inspect the repository and project before changing anything
+
+Run these first. The answers decide the parameters in section 2 and catch clashes early.
+
+| Check | Command | Why |
+| ----- | ------- | --- |
+| Which templates generated the apps | `cat apps/*/.copier-answers.yml` (`_src_path`, `gcp_project`, `pulumi_state_bucket`) | Confirms the recipe fits (section 12); blank project or bucket values mean you must set them |
+| Uncommitted work in the checkout | `git status` | Don't sweep someone's work into your commits by accident; commit it separately, or ask |
+| Workflows the templates left in the apps | `find apps -path '*/.github/workflows/*'` | They never run (section 10); the root workflow replaces them |
+| Remote and GitHub access | `git remote -v`, `gh auth status` (needs the `workflow` scope to push workflow files), `gh variable list -R <repo>` | Finds the `<owner>/<repo>`; shows variables already set |
+| Target project | `gcloud config list`, `gcloud projects describe <project>` (note `projectNumber`) | The project number goes into the WIF provider path |
+| Your access | `gcloud projects get-iam-policy <project> --flatten=bindings --filter="bindings.members:<you>" --format='value(bindings.role)'` | `provision-deployer` needs Owner (or the roles in 6.1) |
+| Billing | `gcloud billing projects describe <project>` | Cloud SQL and Cloud Run need it |
+| Existing CI identity | `gcloud iam workload-identity-pools list --location global --project <project>`, `gcloud iam service-accounts list --project <project>` | Reuse a `github` pool if there is one (`provision-deployer` does); see other apps' deployers |
+| State bucket and stack names | `gcloud storage ls -r gs://<bucket>/.pulumi/stacks/` | Another app with the same Pulumi project name and stack would share state |
+| Firebase on the project | `gcloud projects describe <project> --format='value(labels.firebase)'` (`enabled`) | Web setup adds Firebase if it's missing, and that can't be undone: confirm with the project owner first |
+| Local tools | `bun`, `node` ≥ 22.12, `pulumi`, `gcloud`, `docker` with buildx, and `docker compose` or `docker-compose` | To run the checks and the one-time setup locally |
+
+Then run every app's checks locally (section 3.4). If they fail, fix the code before touching CI.
+
+## 5. Decisions the setup has to make
+
+| Decision | Choice here | When to choose differently |
+| -------- | ----------- | -------------------------- |
+| One deployer service account, or one per app | **One per app** (least privilege; `vars.GCP_<APP>_DEPLOYER_SERVICE_ACCOUNT`) | One shared account only when the apps are always deployed together and share one owner |
+| Who may sign in | Any workflow in this **repository** (`attribute.repository`) | For prod, also limit to `main` or a GitHub environment: add `attribute.ref` to the mapping and bind `principalSet://…/attribute.ref/refs/heads/main`, or check `assertion.environment` in the attribute condition |
+| Frontend calls the backend through Hosting (`/api/**` rewrite) | **Yes**, so `deploy-web` runs after `deploy-api` | No rewrite (the SPA calls the api's own URL): drop `apiCloudRunService` and the `needs: deploy-api` |
+| Checks in the deploy workflow, or a separate CI workflow | **In the deploy workflow**, as gates | With an existing CI workflow, trigger the deploy with `workflow_run` on CI success instead, as the template's `apps/*/.github/workflows/deploy.yml` does |
+| Stacks | `dev` only, deployed on every push to `main` | Add `Pulumi.prod.yaml` per app and deploy prod only by `workflow_dispatch` with a protected GitHub environment |
+| What triggers a deploy | Push to `main` touching `apps/**`, root `package.json` or `bun.lock`, or the workflow | Narrow it to per-app paths if the apps release separately (split into two workflows) |
+
+## 6. One-time setup (GCP project admin)
 
 Run these once per project and repository. The scripts are idempotent: re-running them only
 checks, or repairs what's missing.
 
-### 4.1 Prerequisites
+### 6.1 Prerequisites
 
 - An existing GCP project with **billing enabled** (Cloud SQL and Cloud Run need it).
 - The admin is **Owner**, or has Project IAM Admin, Service Account Admin, Service Usage
@@ -119,7 +150,7 @@ checks, or repairs what's missing.
   gcloud auth application-default login   # Pulumi uses these, not the gcloud login
   ```
 
-### 4.2 Point the Pulumi stacks at the project
+### 6.2 Point the Pulumi stacks at the project
 
 In `apps/api/infra` and `apps/web/infra`:
 
@@ -132,7 +163,7 @@ In `apps/api/infra` and `apps/web/infra`:
 Before picking stack names, check the bucket isn't already holding a stack of the same name:
 `gcloud storage ls -r gs://<bucket>/.pulumi/stacks/`.
 
-### 4.3 Create the deployers and GitHub OIDC trust
+### 6.3 Create the deployers and GitHub OIDC trust
 
 ```sh
 cd apps/api/infra
@@ -193,7 +224,7 @@ Deployer roles:
 | `api-deployer` | browser, serviceusage.serviceUsageAdmin, compute.networkAdmin, servicenetworking.networksAdmin, cloudsql.admin, secretmanager.admin, artifactregistry.admin, run.admin, iam.serviceAccountAdmin, iam.serviceAccountUser, logging.viewer | storage.admin (state bucket) |
 | `web-deployer` | browser, serviceusage.serviceUsageAdmin, firebase.admin                                             | storage.admin (state bucket) |
 
-### 4.4 Set the GitHub repository variables
+### 6.4 Set the GitHub repository variables
 
 They're identifiers, not secrets, so they're **variables** (`vars.*`), not secrets:
 
@@ -208,7 +239,7 @@ gh variable set GCP_WEB_DEPLOYER_SERVICE_ACCOUNT -R $R --body web-deployer@<proj
 one-app repository. In a monorepo with two deployers, use the two per-app names above,
 which the workflow reads.
 
-### 4.5 Create the stacks and commit their salt
+### 6.5 Create the stacks and commit their salt
 
 ```sh
 (cd apps/api/infra && bun run setup dev)
@@ -220,7 +251,7 @@ git add apps/*/infra/Pulumi.dev.yaml && git commit -m "chore(infra): ..."
 `Pulumi.dev.yaml`. Commit it **before** the first CI deploy: a stack created inside CI
 writes the salt to the runner's checkout, and it's lost when the job ends.
 
-## 5. How the workflow authenticates
+## 7. How the workflow authenticates
 
 ```yaml
 permissions:
@@ -245,7 +276,7 @@ permissions:
 
 `id-token: write` is granted only to the two deploy jobs; the check jobs can't get a GCP token.
 
-## 6. Testing the workflow before it reaches `main`
+## 8. Testing the workflow before it reaches `main`
 
 `workflow_dispatch` only works once the workflow file is on the default branch, so for the
 first run:
@@ -254,9 +285,24 @@ first run:
 2. Push. The workflow runs from the branch (the WIF trust is per repository, not per branch,
    so it can sign in).
 3. Watch it: `gh run watch <id> --exit-status`, then `gh run view <id> --log-failed` if it fails.
-4. Check the results (section 7), then remove the `TEMP` branch from the trigger.
+   After fixing something outside the repository (an IAM grant, a deleted resource), re-run
+   only the failed jobs with `gh run rerun <id> --failed` instead of pushing again.
+4. Check the results (section 9), then remove the `TEMP` branch from the trigger. Do that in
+   the same push as your last change: the commit that removes the branch doesn't trigger a run.
 
-## 7. Checking a deploy
+How long to expect:
+
+| Stage                          | First deploy                              | Later deploys |
+| ------------------------------ | ----------------------------------------- | ------------- |
+| api-check / web-check          | ~40 s / ~1–1.5 min                         | same          |
+| deploy-api                     | ~20 min (Cloud SQL alone takes ~15–17 min) | ~1–2 min      |
+| deploy-web                     | ~1–2 min                                   | ~1 min        |
+
+**IAM changes take time to apply.** A grant can take 2–7 minutes before a run sees it. If a run
+still fails with the same permission error right after a grant, wait about 4 minutes and
+`gh run rerun --failed`; don't change anything else yet.
+
+## 9. Checking a deploy
 
 The workflow smoke-tests both apps: `GET <api url>/health` must return 2xx, and
 `GET <web url>/` must serve the SPA's `index.html`. By hand:
@@ -271,7 +317,7 @@ gcloud run jobs executions list --job api-dev-migrate --region us-central1 --pro
 
 Each job's GitHub environment (`dev`) shows the deployed URL.
 
-## 8. Gotchas found while setting this up
+## 10. Gotchas found while setting this up
 
 - **Nested workflows don't run.** The app templates come with `apps/*/.github/workflows/*.yml`;
   GitHub reads only `.github/workflows/` at the repository root. A monorepo needs one root
@@ -284,7 +330,7 @@ Each job's GitHub environment (`dev`) shows the deployed URL.
 - **Docker Compose v1 vs v2**: `bun run db:up` calls `docker compose`; machines with only
   the standalone `docker-compose` need it run by hand, or a plain `docker run postgres:17-alpine`
   with `DATABASE_URL` exported.
-- **Encryption salt**: commit `Pulumi.<stack>.yaml` after `setup`, before the first CI run (section 4.5).
+- **Encryption salt**: commit `Pulumi.<stack>.yaml` after `setup`, before the first CI run (section 6.5).
 - **`PULUMI_CONFIG_PASSPHRASE: ""`** must be set for `pulumi stack output` in CI; the
   `bun run` scripts set it for themselves, but direct `pulumi` calls don't get it.
 - **`environment:` can't read `env.*`**: use `${{ inputs.stack || 'dev' }}` there.
@@ -304,6 +350,20 @@ Each job's GitHub environment (`dev`) shows the deployed URL.
   `gcloud logging read 'resource.labels.service_name="api-dev"' --freshness 1h`. If the
   image is in doubt, run it locally against a `postgres:17-alpine` container
   (`docker run -e PORT=8080 -e DATABASE_URL=… -p 58080:8080 <image>`, then `curl :58080/health`).
+- **How the probe failure was narrowed down** (reuse the order): (1) the image ran locally
+  against Postgres and answered `/health` with 200, so the image was fine; (2) the migrate
+  job, from the same image, had logged `migrations applied`, so the secret and the database
+  were fine; (3) the service had logged nothing, not even `api listening`. Throwaway services
+  showed the sandbox wasn't the cause (gen1 and gen2 both started), and a copy with the exact
+  VPC, secret and probe settings started and passed `/health`. So the config was right, and a
+  plain re-deploy (with `--refresh`) fixed it. Delete throwaway services afterwards.
+- **Pulumi rewrites stack config** when it writes the salt: `api:deletionProtection: false`
+  becomes `"false"`. That's harmless: `config.getBoolean` parses the string.
+- **`index.html` is cached for an hour at `/`.** Firebase's `no-cache` rule in
+  `apps/web/infra/hosting-config.ts` matches `/index.html`, but a request for `/` (or a deep
+  link rewritten to `index.html`) gets the default `max-age=3600`, so a new release can take
+  up to an hour to reach a returning visitor. This came with the template; fix it by giving
+  `**` the `no-cache` header and keeping `/assets/**` immutable.
 - **Action majors**: `actions/checkout@v4`, `cache@v4` and `setup-node@v4` target Node 20,
   which GitHub has deprecated. The workflow uses checkout v7, cache v6, setup-node v7,
   google-github-actions/auth v3 and setup-gcloud v3, and setup-buildx v4.
@@ -311,7 +371,16 @@ Each job's GitHub environment (`dev`) shows the deployed URL.
   hourly). `cd apps/api/infra && bun run destroy` removes it; `api:deletionProtection: false`
   allows that on `dev` only.
 
-## 9. Test results (first setup, 2026-11-27)
+### Cleaning up
+
+| What | Command |
+| ---- | ------- |
+| The api stack (Cloud SQL, VPC, Cloud Run, image repository, secret) | `cd apps/api/infra && bun run destroy` |
+| The web stack (Hosting site and its releases) | `cd apps/web/infra && bun run destroy` (Firebase stays on the project) |
+| The CI identity | `gcloud iam service-accounts delete <app>-deployer@<project>.iam.gserviceaccount.com`; remove the `serviceUsageConsumer` binding; `gcloud iam workload-identity-pools delete github --location global` if nothing else uses it |
+| GitHub | `gh variable delete GCP_WORKLOAD_IDENTITY_PROVIDER` (and the two deployer variables); the `dev` environment, under Settings → Environments |
+
+## 11. Test results (first setup, 2026-11-27)
 
 | Run | Result | What it showed |
 | --- | ------ | -------------- |
@@ -323,7 +392,7 @@ Deployed: api `https://api-dev-m3ocxweahq-uc.a.run.app/health` → 200 `{"status
 web `https://web-dev-91c36c.web.app/` → 200. `https://web-dev-91c36c.web.app/api/health` reaches the api,
 which answers 404 because the api serves `/health` (see gotchas).
 
-## 10. Reusing this on another repository (skill checklist)
+## 12. Reusing this on another repository (skill checklist)
 
 A repository fits this recipe when it has:
 
@@ -335,17 +404,20 @@ A repository fits this recipe when it has:
 
 Steps:
 
-1. Collect the parameters in section 2 (project, region, bucket, repo, stack, app folder and
-   Pulumi project names). Check billing, and that you're Owner: `gcloud projects get-iam-policy`.
-2. Run every app's checks locally (section 3.4), so CI failures are about CI, not code.
-3. Point every `infra/Pulumi.yaml` / `Pulumi.<stack>.yaml` at the project (4.2), checking
+1. Run the pre-flight checks (section 4) and fill in the parameters in section 2 (project and
+   project number, region, bucket, repository, stack, app folders and Pulumi project names).
+2. Make the decisions in section 5, and confirm with the person anything that reaches beyond the
+   repository: the target project, adding Firebase, creating Cloud SQL (billed hourly).
+3. Run every app's checks locally (section 3.4), so CI failures are about CI, not code.
+4. Point every `infra/Pulumi.yaml` / `Pulumi.<stack>.yaml` at the project (6.2), checking
    the bucket for clashing stack names.
-4. Run `provision-deployer --github <owner>/<repo>` per app (4.3), dry run first, then grant
-   `serviceusage.serviceUsageConsumer` to the repository's principal set (also 4.3).
-5. Set `GCP_WORKLOAD_IDENTITY_PROVIDER` and one `GCP_<APP>_DEPLOYER_SERVICE_ACCOUNT` per app (4.4).
-6. Run `bun run setup <stack>` per app and commit the salts (4.5).
-7. Copy `.github/workflows/deploy.yml`. Rename the app folders and jobs, and the
+5. Run `provision-deployer --github <owner>/<repo>` per app (6.3), dry run first, then grant
+   `serviceusage.serviceUsageConsumer` to the repository's principal set (also 6.3).
+6. Set `GCP_WORKLOAD_IDENTITY_PROVIDER` and one `GCP_<APP>_DEPLOYER_SERVICE_ACCOUNT` per app (6.4).
+7. Run `bun run setup <stack>` per app and commit the salts (6.5).
+8. Copy `.github/workflows/deploy.yml`. Rename the app folders and jobs, and the
    `vars.GCP_<APP>_…` names. Keep the job graph: check → deploy, frontend after the backend
    it forwards to.
-8. Test from the branch with a `TEMP` trigger (section 6), check it (section 7), then remove the trigger.
-9. Record anything new in this file's gotchas.
+9. Test from the branch with a `TEMP` trigger (section 8), check it (section 9), then remove the trigger.
+   Budget ~25 min for the first run (section 8).
+10. Record anything new in this file's gotchas.
