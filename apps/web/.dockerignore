@@ -1,0 +1,23 @@
+# Only the sources the build needs reach the build context. .env holds the committed,
+# non-secret VITE_* defaults the build reads; local overrides never reach it.
+.git
+node_modules
+dist
+dist-ssr
+infra
+coverage
+playwright-report
+test-results
+blob-report
+playwright
+.vscode
+.idea
+.github
+*.local
+.env.*
+!.env.example
+*.log
+*.md
+.copier-answers.yml
+Dockerfile
+.dockerignore
