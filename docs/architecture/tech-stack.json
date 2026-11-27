@@ -1,0 +1,38 @@
+{
+  "schema": "tech-stack@1",
+  "catalog": "application-types",
+  "catalog_version": "0.6.0",
+  "sources": [
+    "docs/architecture/app-components.json",
+    "docs/architecture/architecture-characteristics.md",
+    "/context/standards/application-types.yaml",
+    "/context/standards/engineering/frontend-react.yaml",
+    "/context/standards/engineering/backend-ts.yaml"
+  ],
+  "stacks": [
+    {
+      "component": "web",
+      "application_type": "web-ui",
+      "folder": "apps/web",
+      "stack": {
+        "standard": "frontend-react",
+        "standard_version": "0.3.0",
+        "architecture": "feature-folders"
+      },
+      "serves": ["AC-4", "AC-6", "AC-7"],
+      "reason": "frontend-react with feature-folders is the only stack the web-ui type allows. Its rule features-are-independent keeps each screen (overview, gaps, suggestions, plan, status, history) in its own feature, so a change to how one open business rule is shown touches one feature and no other, and the UI takes rule results from the API instead of computing them (AC-6). Evidence links on gaps, drivers and suggestions (FR-3, FR-4, FR-5) live in the features that show them and can be covered by vitest at the standard's 80% coverage floor (AC-4). TypeScript, bun and vite give one scripted build and test step that a single pipeline run can drive from a clean commit (AC-7). Access control (AC-1) is enforced in the api component, not here."
+    },
+    {
+      "component": "api",
+      "application_type": "backend-api",
+      "folder": "apps/api",
+      "stack": {
+        "standard": "backend-ts",
+        "standard_version": "0.3.0",
+        "architecture": "hexagonal"
+      },
+      "serves": ["AC-1", "AC-2", "AC-3", "AC-5", "AC-6", "AC-7"],
+      "reason": "backend-ts with hexagonal is the only stack the backend-api type allows. Its rules domain-is-pure and application-uses-ports put each open PRD 8 rule (CGM formula, target, thresholds, after point, suggestion source, data and entitlement source) behind one port wired only in src/composition-root.ts, which an import rule check in CI can enforce (AC-6). A pure domain lets the CGM, improvement, shortfall and outcome-label calculations run as table-driven bun test cases over fixtures (AC-5). The source-data adapter can be a read-only outbound port with no write method (AC-2). Plan and status records can be kept append-only in their own adapter, with who and when held in the domain (AC-3). Entitlement checks can sit in one inbound place that every account-scoped route passes through, which the authorization matrix test then covers (AC-1). A single TypeScript service built with bun deploys through the same pipeline as web (AC-7)."
+    }
+  ]
+}
