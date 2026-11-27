@@ -380,6 +380,27 @@ Each job's GitHub environment (`dev`) shows the deployed URL.
 | The CI identity | `gcloud iam service-accounts delete <app>-deployer@<project>.iam.gserviceaccount.com`; remove the `serviceUsageConsumer` binding; `gcloud iam workload-identity-pools delete github --location global` if nothing else uses it |
 | GitHub | `gh variable delete GCP_WORKLOAD_IDENTITY_PROVIDER` (and the two deployer variables); the `dev` environment, under Settings → Environments |
 
+Two things went wrong on the first local teardown:
+
+- **Check who Pulumi runs as locally.** Application-default credentials can be set to
+  impersonate a service account (`gcloud auth application-default login
+  --impersonate-service-account=…`), which is easy to leave behind from work on another app. Here
+  they impersonated `demo-portal-deployer`, so `bun run destroy` for the api ran as that account
+  and failed with `secretmanager.versions.destroy denied`. Setup prints the identity
+  (`application-default credentials: impersonating …`). Check it with
+  `python3 -c "import json,os;print(json.load(open(os.path.expanduser('~/.config/gcloud/application_default_credentials.json'))).get('type'))"`.
+  To run once as your own gcloud account without touching that file:
+  `GOOGLE_OAUTH_ACCESS_TOKEN=$(gcloud auth print-access-token) bun run destroy --stack dev --yes`
+  (the token lasts an hour).
+- **The api's subnet can't be deleted straight away.** Cloud Run's Direct VPC egress reserves
+  an IP in the subnet (`serverless-ipv4-cloudrun-…`, purpose `SERVERLESS`). Google releases it
+  on its own, usually 1–2 hours after the service is deleted, and it can't be deleted by hand.
+  Until then the destroy fails at `Subnetwork subnet` with `already being used by`, and stops
+  before the VPC, image repository, secret and runtime account. Cloud SQL, the costly part, is
+  already gone by then. Wait until
+  `gcloud compute addresses list --filter='subnetwork~<app>-<stack>'` is empty, then run the
+  destroy again.
+
 ## 11. Test results (first setup, 2026-11-27)
 
 | Run | Result | What it showed |
