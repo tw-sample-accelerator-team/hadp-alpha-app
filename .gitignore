@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+build/
+coverage/
+*.tsbuildinfo
+
+# Test output
+playwright-report/
+test-results/
+blob-report/
+
+# Local env files
+.env.local
+.env.*.local
+
+# Logs and OS files
+*.log
+.DS_Store
+
+# Agent session files
+.claude/
