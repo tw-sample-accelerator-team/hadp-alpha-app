@@ -1,0 +1,206 @@
+name: Deploy
+
+# Builds, tests and deploys both apps of this bun monorepo to GCP:
+#   apps/api  -> Cloud Run + private Cloud SQL Postgres   (Pulumi program in apps/api/infra)
+#   apps/web  -> Firebase Hosting, /api/** sent to the api (Pulumi program in apps/web/infra)
+#
+# GCP sign-in is keyless: GitHub's OIDC token is exchanged through Workload Identity
+# Federation for a short-lived token of each app's own deployer service account.
+# One-time setup and every requirement: docs/operations/github-actions-gcp-deploy.md.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/**"
+      - "package.json"
+      - "bun.lock"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+    inputs:
+      stack:
+        description: Pulumi stack to deploy (needs apps/*/infra/Pulumi.<stack>.yaml)
+        default: dev
+      apps:
+        description: Which apps to deploy
+        type: choice
+        options: [all, api, web]
+        default: all
+
+permissions:
+  contents: read
+
+# One deploy per stack at a time; never cancel one halfway through a Pulumi update.
+concurrency:
+  group: deploy-${{ inputs.stack || 'dev' }}
+  cancel-in-progress: false
+
+env:
+  STACK: ${{ inputs.stack || 'dev' }}
+  BUN_VERSION: 1.3.14
+  PULUMI_VERSION: 3.278.0
+  PULUMI_SKIP_UPDATE_CHECK: "true"
+  # The stacks hold no encrypted secrets yet (see apps/*/infra/scripts/lib/target.mts).
+  PULUMI_CONFIG_PASSPHRASE: ""
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Build gates: the same checks a developer runs locally. A deploy never starts
+  # unless its app's checks pass.
+  # ---------------------------------------------------------------------------
+  api-check:
+    name: api · typecheck, lint, test
+    if: inputs.apps != 'web'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: api_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U app -d api_test"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      # Overrides apps/api/.env.test, which points at the docker-compose port.
+      DATABASE_URL: postgres://app:app@localhost:5432/api_test
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version: "${{ env.BUN_VERSION }}" }
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('**/bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
+      - run: bun install --frozen-lockfile
+        working-directory: .
+      - run: bun run typecheck
+      - run: bun run lint
+      - run: bun run test:unit
+      - run: bun run test:integration
+      - run: bun run test:e2e
+      - run: bun install --frozen-lockfile && bun run typecheck
+        working-directory: apps/api/infra
+
+  web-check:
+    name: web · typecheck, lint, test, build
+    if: inputs.apps != 'api'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version: "${{ env.BUN_VERSION }}" }
+      - uses: actions/setup-node@v4 # tsc, Vite and Vitest run on Node 22
+        with: { node-version-file: apps/web/.nvmrc }
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('**/bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
+      - run: bun install --frozen-lockfile
+        working-directory: .
+      - run: bun run typecheck
+      - run: bun run lint
+      - run: bun run format:check
+      - run: bun run knip
+      - run: bun run test
+      - run: bun run build
+      - run: bun install --frozen-lockfile && bun run typecheck
+        working-directory: apps/web/infra
+
+  # ---------------------------------------------------------------------------
+  # Deploys. Each job signs in as its own app's deployer service account.
+  # ---------------------------------------------------------------------------
+  deploy-api:
+    name: api · deploy to Cloud Run
+    needs: api-check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # lets google-github-actions/auth request the GitHub OIDC token
+    environment:
+      name: ${{ inputs.stack || 'dev' }}
+      url: ${{ steps.outputs.outputs.url }}
+    defaults:
+      run:
+        working-directory: apps/api/infra
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version: "${{ env.BUN_VERSION }}" }
+      - uses: actions/setup-node@v4 # Pulumi's nodejs runtime
+        with: { node-version: 22 }
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_API_DEPLOYER_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - uses: docker/setup-buildx-action@v3 # Pulumi builds and pushes the image with buildx
+      - name: Install Pulumi
+        working-directory: .
+        run: |
+          curl -fsSL https://get.pulumi.com | sh -s -- --version "$PULUMI_VERSION"
+          echo "$HOME/.pulumi/bin" >> "$GITHUB_PATH"
+      - name: Deploy (setup, image build + push, migrations, Cloud Run)
+        run: bun run deploy --stack "$STACK"
+      - name: Read stack outputs
+        id: outputs
+        run: echo "url=$(pulumi stack output url --stack "$STACK")" >> "$GITHUB_OUTPUT"
+      - name: Smoke test GET /health
+        env:
+          URL: ${{ steps.outputs.outputs.url }}
+        run: curl -fsS --retry 10 --retry-delay 6 --retry-all-errors "$URL/health"
+
+  deploy-web:
+    name: web · deploy to Firebase Hosting
+    needs: [web-check, deploy-api]
+    # Runs after the api deploy, or without it when only the web app is deployed.
+    if: >-
+      always() && needs.web-check.result == 'success' &&
+      (needs.deploy-api.result == 'success' || needs.deploy-api.result == 'skipped')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    environment:
+      name: ${{ inputs.stack || 'dev' }}
+      url: ${{ steps.outputs.outputs.url }}
+    defaults:
+      run:
+        working-directory: apps/web/infra
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version: "${{ env.BUN_VERSION }}" }
+      - uses: actions/setup-node@v4 # the app build, Pulumi and the Firebase CLI run on Node
+        with: { node-version-file: apps/web/.nvmrc }
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_WEB_DEPLOYER_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Install Pulumi
+        working-directory: .
+        run: |
+          curl -fsSL https://get.pulumi.com | sh -s -- --version "$PULUMI_VERSION"
+          echo "$HOME/.pulumi/bin" >> "$GITHUB_PATH"
+      - name: Deploy (setup, vite build, Hosting site + release)
+        run: bun run deploy --stack "$STACK"
+      - name: Read stack outputs
+        id: outputs
+        run: echo "url=$(pulumi stack output url --stack "$STACK")" >> "$GITHUB_OUTPUT"
+      - name: Smoke test GET /
+        env:
+          URL: ${{ steps.outputs.outputs.url }}
+        run: curl -fsS --retry 10 --retry-delay 6 --retry-all-errors "$URL/" | grep -q '<div id="root">'
