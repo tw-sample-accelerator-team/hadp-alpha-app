@@ -1,0 +1,56 @@
+{
+  "source": {
+    "prd": "docs/product/prd.md",
+    "key_frs": "docs/requirements/key-frs.md",
+    "architecture_characteristics": "docs/architecture/architecture-characteristics.md",
+    "catalog": "/context/standards/application-types.yaml",
+    "catalog_version": "0.6.0"
+  },
+  "iteration": 0,
+  "components": [
+    {
+      "name": "web",
+      "application_type": "web-ui",
+      "folder": "apps/web",
+      "purpose": "The browser screens where Delivery Managers, CLT members and action owners view account CGM, gaps, drivers, evidence and suggestions, build and save optimization plans, update action status, and review governance history.",
+      "why": "Catalog use_when for web-ui: a key FR has a person viewing or changing data in a browser. PRD 7 names an internal tool for people, and every key FR has a user viewing or changing data.",
+      "traces": {
+        "frs": ["FR-1", "FR-4", "FR-5", "FR-6", "FR-7", "FR-8", "FR-9", "FR-10", "FR-11", "FR-12", "FR-14", "FR-15", "FR-16", "FR-17", "FR-18"],
+        "acs": ["AC-4", "AC-7"]
+      }
+    },
+    {
+      "name": "api",
+      "application_type": "backend-api",
+      "folder": "apps/api",
+      "purpose": "The HTTP service that holds the business rules (CGM aggregation, gap detection, drivers, suggestions, before-and-after comparison, unrealized-improvement flag, effectiveness), enforces sign-in and entitlements on every request, reads project data read-only, and keeps plans, actions and decision records in its own store.",
+      "why": "Catalog use_when for backend-api: a key FR needs business rules, stored data or an API. FR-1, FR-4, FR-15, FR-16 and FR-18 need business rules; FR-12 and FR-17 need stored data; FR-2, FR-3 and AC-1 need checks enforced on the server for every request; FR-13 and AC-2 need the only write path to sit in one service with its own store.",
+      "traces": {
+        "frs": ["FR-1", "FR-2", "FR-3", "FR-4", "FR-5", "FR-6", "FR-7", "FR-8", "FR-9", "FR-10", "FR-11", "FR-12", "FR-13", "FR-14", "FR-15", "FR-16", "FR-17", "FR-18"],
+        "acs": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5", "AC-6", "AC-7"]
+      }
+    }
+  ],
+  "fr_coverage": {
+    "FR-1": ["web", "api"],
+    "FR-2": ["api"],
+    "FR-3": ["api"],
+    "FR-4": ["web", "api"],
+    "FR-5": ["web", "api"],
+    "FR-6": ["web", "api"],
+    "FR-7": ["web", "api"],
+    "FR-8": ["web", "api"],
+    "FR-9": ["web", "api"],
+    "FR-10": ["web", "api"],
+    "FR-11": ["web", "api"],
+    "FR-12": ["web", "api"],
+    "FR-13": ["api"],
+    "FR-14": ["web", "api"],
+    "FR-15": ["web", "api"],
+    "FR-16": ["web", "api"],
+    "FR-17": ["web", "api"],
+    "FR-18": ["web", "api"]
+  },
+  "why_not_fewer": "One component cannot cover the key FRs: web-ui alone cannot hold business rules or stored data, or enforce access on the server (FR-2, FR-3, FR-12, FR-13, AC-1, AC-2), and backend-api alone gives people no browser screens (FR-1, FR-8, FR-14, FR-17). The catalog has no type that does both.",
+  "why_not_more": "No key FR or AC calls for a third component. A separate action-owner UI is not needed because FR-14 is one more set of screens in the same web-ui for signed-in users. A separate calculation or ingestion service is not needed because AC-6 asks for one module per rule and one port per source inside the backend, not separate deployables. Iteration 0 needs only these two."
+}
